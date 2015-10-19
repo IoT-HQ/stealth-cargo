@@ -25,6 +25,22 @@ Adafruit_GPS GPS(&mySerial);
 boolean usingInterrupt = false;
 void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
 
+//***********************************************
+// convert NMEA GPS Format to Std decimal Format
+//***********************************************
+int degLatInt, degLongInt;
+float minLatFloat, minLongFloat, decLat, decLong; //googleMapsLat, googleMapsLong;
+char* lat_str = new char[10];
+char* long_str = new char[10];
+char degLatString[5], degLongString[5];
+
+char *dtostrf (double val, signed char width, unsigned char prec, char *sout) {
+  char fmt[20];
+  sprintf(fmt, "%%%d.%df", width, prec);
+  sprintf(sout, fmt, val);
+  return sout;
+}
+
 void setup() {
   pinMode(13, OUTPUT);
   // connect at 115200 so we can read the GPS fast enough and echo without dropping chars
@@ -142,11 +158,54 @@ void loop() {
     // temperature
     // pressure
     // moisture
+
+    // Convert NMEA Latitude to String
+    dtostrf(GPS.latitude, 7, 4, lat_str); //convert GPS.latitude from float to String. 7 - means 8 characters long ; 4 - means 4 decimal point 
+
+    // Get Degree substring from latitude String
+    strncpy(degLatString, lat_str, 1); // Get Degree from Full Latitude String. Example 311.7799 - Get 3
+
+    // Get Minutes substring from latitude String
+    char* minLatString = lat_str + 1; // Move pointer up 1 position. Example 311.7799 will move to 11.7799
+
+    // Convert Deg String to int
+    degLatInt = atoi(degLatString);
+
+    // Convert Min String to float
+    minLatFloat = atof(minLatString);
+
+    //Convert NMEA latitude to Google Maps latitude
+    decLat = degLatInt + (minLatFloat / 60); 
+    // Serial.print("Google Map Latitude: ");
+    // Serial.println(googleMapsLat, 4);
+
+    // Convert NMEA Longitude to String
+    dtostrf(GPS.longitude, 8, 4, long_str); //convert GPS.latitude from float to String. 8 - means 9 characters long ; 4 - means 4 decimal point 
+
+    // Get Degree substring from latitude String
+    strncpy(degLongString, long_str, 3); // Get Degree from Full Latitude String. Example 10141.91699 - Get 141
+
+    // Get Minutes substring from latitude String
+    char* minLongString = long_str + 3; // Move pointer up 3 position. Example 10141.9169 will move to 41.7799
+
+    // Convert Deg String to int
+    degLongInt = atoi(degLongString);
+
+    // COnvert Min String to float
+    minLongFloat = atof(minLongString);
+
+    //Convert NMEA latitude to Google Maps latitude
+    decLong = degLongInt + (minLongFloat / 60); 
+    // Serial.print("Google Map Longitude: ");
+    // Serial.println(googleMapsLong, 4);
+
+
+    
     String uid = "0.0.0.13";
     String rty = ";2";
     String tsp = ';' + String(GPS.year) + '-' + String(GPS.month) + '-' + GPS.day + 'T' + GPS.hour + ':' + GPS.minute + ':' + GPS.seconds;
-    String lat = ';' + String(GPS.latitude) + String(GPS.lat);
-    String lng = ';' + String(GPS.longitude) + String(GPS.lon);
+    String lat = ';' + String(decLat, 4) + String(GPS.lat);
+    String lng = ';' + String(decLong, 4) + String(GPS.lon);
     String crs = ';' + String(GPS.angle);
     String spd = ';' + String(GPS.speed);
     String alt = ';' + String(GPS.altitude);
