@@ -1,20 +1,25 @@
-// Cargo Data Simulator
-// Description: Send GPS position data and other relevant sensor ("dummy") data to simulate real cargo data in motion
-// Author: Faizal Mansor
-// Date: 2015-10-07
+/*  
+ *  Cargo Data Simulator
+ *  ====================
+ *  Description: Send GPS position data and other relevant sensor ("dummy") data to simulate real cargo data in motion
+ *  Author: Faizal Mansor
+ *  Date: 2015-10-27
+ * 
+ */
 
 #include <Adafruit_GPS.h>
 
 // You should make the following connections with the Due and GPS module:
+//
 // GPS power pin to Arduino Due 3.3V output.
 // GPS ground pin to Arduino Due ground.
-// For hardware serial 1 (recommended):
+//
+// For hardware serial 1:
 //   GPS TX to Arduino Due Serial1 RX pin 19
 //   GPS RX to Arduino Due Serial1 TX pin 18
 #define mySerial Serial1
 
 Adafruit_GPS GPS(&mySerial);
-
 
 // Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
 // Set to 'true' if you want to debug and listen to the raw GPS sentences. 
@@ -24,23 +29,6 @@ Adafruit_GPS GPS(&mySerial);
 // off by default!
 boolean usingInterrupt = false;
 void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
-
-//***********************************************
-// convert NMEA GPS Format to Std decimal Format
-//***********************************************
-int degLatInt, degLongInt;
-float minLatFloat, minLongFloat, decLat, decLong; //googleMapsLat, googleMapsLong;
-char* lat_str = new char[10];
-char* long_str = new char[10];
-char degLatString[5], degLongString[5];
-
-// https://github.com/arduino/Arduino/blob/a2e7413d229812ff123cb8864747558b270498f1/hardware/arduino/sam/cores/arduino/avr/dtostrf.c
-char *dtostrf (double val, signed char width, unsigned char prec, char *sout) {
-  char fmt[20];
-  sprintf(fmt, "%%%d.%df", width, prec);
-  sprintf(sout, fmt, val);
-  return sout;
-}
 
 void setup() {
   pinMode(13, OUTPUT);
@@ -114,52 +102,32 @@ uint32_t timer = millis();
 
 int i=0;  // loop counter
 
-const String TRANSPORTER_ID = ";R0001";
-const String TRIP_ID = ";P0003";
+const String C_ID = "0.0.0.13";
+const char R_TYPE = '2'; // Record type = Cargo data
+const String TRANSPORTER_ID = "R0001";
+const String TRIP_ID = "P0003";
 
-String c_id = "0.0.0.13";
+// GPS data
+int GPS_year = 0;
+int GPS_month = 0;
+int GPS_day = 0;
+int GPS_hour = 0;
+int GPS_min = 0;
+int GPS_sec = 0;
+float GPS_latitude = 0.0;
+float GPS_longitude = 0.0;
+char GPS_lat = 'X';
+char GPS_lon = 'Y';
+float GPS_speed = 0.0;
+float GPS_angle = 0.0;
+float GPS_alt = 0.0;
+
 float c_wgt = 3000.50;
 float c_tmp = 30.50;
 float c_psi = 25.10;
 float c_mos = 10.50;
 
-float sensor_wgt(int x, float ini, int trigger_x) {
-  if (ini > 0){
-    if (x > trigger_x) {
-      ini = ini - 0.2;
-    }
-  }
-  return ini;
-}
-
-float sensor_tmp(int x, float ini, int trigger_x) {
-//  if (ini > 0){
-//    if (x > trigger_x) {
-//      ini = ini - 0.2;
-//    }
-//  }
-  return ini;
-}
-
-float sensor_psi(int x, float ini, int trigger_x) {
-//  if (ini > 0){
-//    if (x > trigger_x) {
-//      ini = ini - 0.2;
-//    }
-//  }
-  return ini;
-}
-
-float sensor_mos(int x, float ini, int trigger_x) {
-//  if (ini > 0){
-//    if (x > trigger_x) {
-//      ini = ini - 0.2;
-//    }
-//  }
-  return ini;
-}
-
-void loop() {
+void runGPS() {
   // in case you are not using the interrupt above, you'll
   // need to 'hand query' the GPS, not suggested :(
   if (! usingInterrupt) {
@@ -188,83 +156,50 @@ void loop() {
   if (millis() - timer > 4000) { 
     timer = millis(); // reset the timer
 
-    // Data to be formatted and send on the serial bus
-    //
-    // uid = 0.0.0.10
-    // record_type = 2 (cargo)
-    // GPS.year + GPS.month + GPS.day + GPS.hour + GPS.minute + GPS.seconds (timestamp)
-    // GPS.latitude + GPS.lat 
-    // GPS.longitude + GPS.lon
-    // GPS.angle
-    // GPS.speed
-    // GPS.altitude
-    // transporter_id
-    // trip_id
-    // weight
-    // temperature
-    // pressure
-    // moisture
+    
+  }
+}
 
-    // Convert NMEA Latitude to String
-    dtostrf(GPS.latitude, 7, 4, lat_str); //convert GPS.latitude from float to String. 7 - means 8 characters long ; 4 - means 4 decimal point 
+void loop() {
+    /*     
+     * Data to be formatted & send on the serial bus     
+     * ---------------------------------------------
+     * uid = 0.0.0.10
+     * record_type = 2 (cargo)
+     * timestamp = GPS.year + GPS.month + GPS.day + GPS.hour + GPS.minute + GPS.seconds
+     * GPS.latitude + GPS.lat 
+     * GPS.longitude + GPS.lon
+     * GPS.angle
+     * GPS.speed
+     * GPS.altitude
+     * transporter_id
+     * trip_id
+     * weight
+     * temperature
+     * pressure
+     * moisture
+     * 
+     */
 
-    // Get Degree substring from latitude String
-    strncpy(degLatString, lat_str, 1); // Get Degree from Full Latitude String. Example 311.7799 - Get 3
-
-    // Get Minutes substring from latitude String
-    char* minLatString = lat_str + 1; // Move pointer up 1 position. Example 311.7799 will move to 11.7799
-
-    // Convert Deg String to int
-    degLatInt = atoi(degLatString);
-
-    // Convert Min String to float
-    minLatFloat = atof(minLatString);
-
-    //Convert NMEA latitude to Google Maps latitude
-    decLat = degLatInt + (minLatFloat / 60); 
-    // Serial.print("Google Map Latitude: ");
-    // Serial.println(googleMapsLat, 4);
-
-    // Convert NMEA Longitude to String
-    dtostrf(GPS.longitude, 8, 4, long_str); //convert GPS.latitude from float to String. 8 - means 9 characters long ; 4 - means 4 decimal point 
-
-    // Get Degree substring from latitude String
-    strncpy(degLongString, long_str, 3); // Get Degree from Full Latitude String. Example 10141.91699 - Get 141
-
-    // Get Minutes substring from latitude String
-    char* minLongString = long_str + 3; // Move pointer up 3 position. Example 10141.9169 will move to 41.7799
-
-    // Convert Deg String to int
-    degLongInt = atoi(degLongString);
-
-    // COnvert Min String to float
-    minLongFloat = atof(minLongString);
-
-    //Convert NMEA latitude to Google Maps latitude
-    decLong = degLongInt + (minLongFloat / 60); 
-    // Serial.print("Google Map Longitude: ");
-    // Serial.println(googleMapsLong, 4);
-
-    String rty = ";2";
     String tsp = ';' + String(GPS.year) + '-' + String(GPS.month) + '-' + GPS.day + 'T' + GPS.hour + ':' + GPS.minute + ':' + GPS.seconds;
-    String lat = ';' + String(decLat, 4) + String(GPS.lat);
-    String lng = ';' + String(decLong, 4) + String(GPS.lon);
+    String lat = ';' + String(GPS.latitude) + String(GPS.lat);
+    String lng = ';' + String(GPS.longitude) + String(GPS.lon);
     String crs = ';' + String(GPS.angle);
     String spd = ';' + String(GPS.speed);
     String alt = ';' + String(GPS.altitude);
-    String wgt = ';' + String(sensor_wgt(i, c_wgt, 50));
-    String tmp = ';' + String(sensor_tmp(i, c_tmp, 100));
-    String psi = ';' + String(sensor_psi(i, c_psi, 100));
-    String mos = ';' + String(sensor_mos(i, c_mos, 100));
+    
+    String wgt = ';' + String(c_wgt);
+    String tmp = ';' + String(c_tmp);
+    String psi = ';' + String(c_psi);
+    String mos = ';' + String(c_mos);
     
     // write the payload data to the serial line for transmission
-    Serial.println(c_id + rty + tsp + lat + lng + crs + spd + alt + TRANSPORTER_ID + TRIP_ID + wgt + tmp + psi + mos);
+    Serial.println(C_ID + R_TYPE + tsp + lat + lng + crs + spd + alt + TRANSPORTER_ID + TRIP_ID + wgt + tmp + psi + mos);
     
     digitalWrite(13, HIGH);
     delay(500);
     digitalWrite(13, LOW);
     delay(500);
-    i++;
-  }
+    i++;  
 
 }
